@@ -60,17 +60,13 @@ catch(const std::exception& e)
 
 | Method                       | Behavior                                                                 |
 |------------------------------|--------------------------------------------------------------------------|
-| `InitEnv(EnvMap)`            | Initializes environment configuration using provided key-type/default map |
-| `Get<T>(key)`                | Returns value of type `T` for specified key. Throws exceptions on:<br>- Missing key<br>- Type mismatch<br>- Empty value |
+| `InitEnv(EnvMap)`            | Initializes environment configuration using provided key-type/default map <br> Throw exception on errors.
+| `Get<T>(key)`                | Returns value of type `T` for specified key. Throw exception on:<br>- Missing key<br>- Type mismatch<br>- Empty value |
 | `GetP<T>(key)`               | Returns `std::unique_ptr<T>` containing value or `nullptr` if:<br>- Key missing<br>- Type mismatch<br>- Empty value<br>(noexcept) |
-| `GetW<T>(key)`               | Directly reads environment variable from system (bypasses initialization). <br> Return value of type `T`. Throw `EnvCfgBadGet` if variable doesn't exist <br> |
+| `GetW<T>(key)`               | Directly reads environment variable from system (bypasses initialization). <br> Return value of type `T`. Throw exception if variable doesn't exist <br> |
 | `GetWP<T>(key)`              | Directly reads environment variable from system (bypasses initialization)<br> Return `std::unique_ptr<T>` containing value or `nullptr` (noexcept)<br> |
 | `HasValue(key)`              | Checks if key exists and contains non-nullopt value (noexcept)       |
 | `IsType<T>(key)`             | Verifies that stored value exactly matches type `T` (noexcept)
-
-### Exception Types
-- `EnvCfgException`: Base exception class (inherits from `std::runtime_error`)
-- `EnvCfgBadGet`: Thrown by `Get()` for invalid access attempts
 
 License
 -------
