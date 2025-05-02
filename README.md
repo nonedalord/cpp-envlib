@@ -7,7 +7,7 @@ cpp-envlib
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-%2300599C)  
 ![Linux](https://img.shields.io/badge/Platform-Linux-lightgrey)
 
-## Features ✨
+## Features
 - **Zero-dependencies** — Requires only C++17 standard library
 - **Header-only** — Single-file integration via `libenv.h`
 - **Flexible error handling** — Exceptions and `noexcept` methods
