@@ -16,57 +16,106 @@ cpp-envlib
 Usage
 ---------------
 
-### Type-checked reading
+### Initialization and Reading Values
 
 ```c++
-env_cfg::EnvMap env_conf = {
-    {"PORT", env_cfg::EnvCfgTypes::int_},
-    {"HOST", "localhost"} // Default value
-};
+env_cfg::EnvMap config = {  
+    {"PORT", env_cfg::EnvCfgTypes::int_}, // Enforce type  
+    {"HOST", "localhost"},                // Default value  
+    {"DEBUG_MODE", true}                  // Boolean type  
+};  
 
-a.InitEnv(env_conf);
-int port = a.Get<int>("PORT"); // Throws on type mismatch
+env_cfg::EnvCfg env;  
+env.InitEnv(config);  
 
-```
-
-### Default values
-
-```c++
-env_cfg::EnvMap config = {
-    {"API_KEY", "default_secret"},
-    {"TIMEOUT", 30}
-};
-
-a.InitEnv(config);
-std::string key = a.Get<std::string>("API_KEY"); // Uses default_secret if env var missing
-```
-
-### Direct environment access
-
-```c++
+// Reading with error handling  
 try 
-{
-    bool debug_mode = env_cfg::EnvCfg::GetW<bool>("DEBUG_MODE");
+{  
+    int port = env.Get<int>("PORT"); // Throws on missing key/type mismatch  
+    std::string host = env.Get<std::string>("HOST");  
 } 
-catch(const std::exception& e) 
+catch (const env_cfg::EnvBadGet& e) 
+{  
+    std::cerr << "Error: " << e.what() << std::endl;  
+}  
+
+// Safe access (noexcept)  
+std::optional<bool> debug = env.GetN<bool>("DEBUG_MODE");  
+if (debug) 
+{  
+    std::cout << "Debug mode: " << *debug << std::endl;  
+}  
+
+```
+
+### Direct Environment Access
+
+```c++
+// Read with exception handling  
+try
 {
-    std::cerr << "Error: " << e.what() << std::endl;
+    int port = env_cfg::EnvCfg::GetW<int>("PORT"); 
 }
+catch (const env_cfg::EnvBadGet& e)
+{
+    std::cerr << "Error: " << e.what() << std::endl;  
+}
+// Read without exceptions  
+int timeout = env_cfg::EnvCfg::GetW<int>("TIMEOUT").default_value(30);  
+```
+
+### Setting Environment Variables
+
+```c++
+// With name validation and overwrite 
+try
+{
+    env_cfg::EnvCfg::SetEnv("API_KEY", "secret123", true);
+}
+catch (const env_cfg::EnvSetError& e)
+{
+    std::cerr << "Error: " << e.what() << std::endl;  
+}
+
+// No-throw setup  
+bool success = env_cfg::EnvCfg::SetEnvN("LOG_LEVEL", "debug", false);  
+if (!success) 
+{  
+    std::cerr << "Failed to set variable" << std::endl;  
+}  
+```
+### Iterating Over Data
+
+```c++
+for (const auto& [key, value] : env) 
+{  
+    std::cout << key << " = " << value << std::endl;  
+}  
 ```
 
 ## API Documentation
 
 ### Core Methods
 
-| Method                       | Behavior                                                                 |
-|------------------------------|--------------------------------------------------------------------------|
-| `InitEnv(EnvMap)`            | Initializes environment configuration using provided key-type/default map <br> Throw exception on errors.
-| `Get<T>(key)`                | Returns value of type `T` for specified key. Throw exception on:<br>- Missing key<br>- Type mismatch<br>- Empty value |
-| `GetP<T>(key)`               | Returns `std::unique_ptr<T>` containing value or `nullptr` if:<br>- Key missing<br>- Type mismatch<br>- Empty value<br>(noexcept) |
-| `GetW<T>(key)`               | Directly reads environment variable from system (bypasses initialization). <br> Return value of type `T`. Throw exception if variable doesn't exist <br> |
-| `GetWP<T>(key)`              | Directly reads environment variable from system (bypasses initialization)<br> Return `std::unique_ptr<T>` containing value or `nullptr` (noexcept)<br> |
-| `HasValue(key)`              | Checks if key exists and contains non-nullopt value (noexcept)       |
-| `IsType<T>(key)`             | Verifies that stored value exactly matches type `T` (noexcept)
+#### Initialization & Reading
+| Method | Description |
+|--------|-------------|
+| **`InitEnv(EnvMap)`** | Initializes environment variables using a key-type/default value map.<br>**Throws:** `EnvException` on parsing or system errors. |
+| **`Get<T>(key)`** | Returns a value of type `T` for the specified key.<br>**Throws:** `EnvBadGet` if:<br>- Key is missing<br>- Type mismatch<br>- Value is empty |
+| **`GetN<T>(key)`** | Safe version that never throws (`noexcept`). <br>Returns: `std::optional<T>`. |
+| **`GetW<T>(key)`** | Directly reads from system environment (bypasses initialization). Returns `EnvDefaultValue<T>` wrapper:<br>- `.default_value(defaultvalue)` - returns value or defaultvalue<br>- `operator T()` - throws `EnvBadGet` on errors |
+
+#### Environment Modification
+| Method | Description |
+|--------|-------------|
+| **`SetEnv(name, value)`** | Sets an environment variable with validation.<br>- Checks for valid names (no `=` or empty)<br>**Throws:** `EnvSetError` on invalid names or `setenv` failures |
+| **`SetEnvN(name, value)`** | No-throw version of `SetEnv`. Returns `true` on success, `false` on failure (`noexcept`). |
+
+#### Validation & Checks
+| Method | Description |
+|--------|-------------|
+| **`HasValue(key)`** | Checks if a key exists and has a non-empty value (`noexcept`).<br>Returns: `bool` |
+| **`IsType<T>(key)`** | Verifies that the stored value exactly matches type `T` (`noexcept`).<br>Returns: `bool` |
 
 License
 -------
