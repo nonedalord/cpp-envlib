@@ -603,10 +603,7 @@ namespace env_cfg
 		{
 			return env_value;
 		}
-		else
-		{
-			return std::string();
-		}
+		return std::string();
 	}
 
 	inline void EnvCfg::ProcessEntry(const std::pair<std::string, EnvValue>& entry)
