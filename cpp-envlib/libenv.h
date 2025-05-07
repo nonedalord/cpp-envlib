@@ -78,11 +78,11 @@ namespace env_cfg
 				}
 				if (!m_value)
 				{
-					if (m_env_name.empty())
+					if (!m_env_name.empty())
 					{
 						throw EnvBadGet("no value for " + m_env_name);
 					}
-					throw EnvBadGet("no value for unknow value");
+					throw EnvBadGet("no value for unknow environment");
 				}
 				return m_value.value();
 			}
