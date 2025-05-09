@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <algorithm>
 #include <stdexcept>
+#include <limits>
+#include <iostream>
 
 namespace env_cfg
 {
@@ -56,12 +58,12 @@ namespace env_cfg
 		{
 		public:
 			explicit EnvDefaultValue(const std::optional<T>& value) : EnvDefaultValue(std::string(), value) {}
-			EnvDefaultValue(const std::string env_name, const std::optional<T>& value) : m_env_name(env_name), m_value(value) {}
-			EnvDefaultValue(const std::string env_name, const std::optional<T>& value, const EnvBadGet& error) : m_env_name(env_name), m_value(value)
+			EnvDefaultValue(const std::string& env_name, const std::optional<T>& value) : m_env_name(env_name), m_value(value) {}
+			EnvDefaultValue(const std::string& env_name, const std::optional<T>& value, const EnvBadGet& error) : m_env_name(env_name), m_value(value)
 			{
 				m_exception = std::make_exception_ptr(error);
 			}
-			EnvDefaultValue(const std::string env_name, const std::optional<T>& value, const EnvException& error) : m_env_name(env_name), m_value(value)
+			EnvDefaultValue(const std::string& env_name, const std::optional<T>& value, const EnvException& error) : m_env_name(env_name), m_value(value)
 			{
 				m_exception = std::make_exception_ptr(error);
 			}
@@ -93,7 +95,46 @@ namespace env_cfg
 		};
 
 	public:
-		using EnvValue = std::optional<std::variant<int, double, long long, std::string, bool, char*, EnvCfgTypes>>;
+		struct EnvValue {
+			using VariantType = std::variant<int, double, long long, std::string, bool, EnvCfgTypes>;
+			std::optional<VariantType> data;
+	
+			template <typename T>
+			EnvValue(T&& value) {
+				using DecayedT = std::decay_t<T>;
+				static_assert(
+					(std::is_integral_v<DecayedT> && !std::is_same_v<DecayedT, char>) ||
+					std::is_same_v<DecayedT, double> ||
+					std::is_same_v<DecayedT, std::string> ||
+					std::is_same_v<DecayedT, bool> ||
+					std::is_same_v<DecayedT, const char*> ||
+					std::is_same_v<DecayedT, EnvCfgTypes> ||
+					!std::is_same_v<DecayedT, char>, 
+					"Invalid type for EnvValue"
+				);
+				if constexpr (std::is_same_v<DecayedT, const char*>) 
+				{
+					data.emplace(static_cast<std::string>(value));
+				}
+				if constexpr (std::is_integral_v<DecayedT> && !std::is_same_v<DecayedT, bool>) 
+				{
+					static_assert(std::numeric_limits<DecayedT>::max() <= std::numeric_limits<long long>::max(), "integer is larger than long long");
+					if constexpr (std::numeric_limits<DecayedT>::max() <= std::numeric_limits<int>::max())
+					{
+						data.emplace(static_cast<int>(value));
+					}
+					else
+					{
+						data.emplace(static_cast<long long>(value));
+					}
+				}
+				else 
+				{
+					data.emplace(std::forward<T>(value));
+				}
+			}
+				EnvValue(std::nullopt_t) : data(std::nullopt) {}
+		};
 		/**
 		* @brief Retrieves a pre-initialized environment value by key or returns a default value.
 		*
@@ -231,7 +272,7 @@ namespace env_cfg
 		* The wrapper provides two ways to access the value:
 		*   1. **Implicit conversion to `T`**: Throws an exception if the value is missing or parsing fails.
 		*   2. **`.default_value(T)`**: Returns a fallback value if the environment variable is missing or empty,
-		*      without throwing exceptions. 
+		*      without throwing exceptions.
 		*
 		* @tparam T Supported types: `int`, `double`, `std::string`, `long long`, `bool`.
 		*           Unsupported types will result in a compile-time error.
@@ -241,8 +282,8 @@ namespace env_cfg
 		* @return EnvDefaultValue<T>
 		*         - Contains the parsed value, a fallback state, or an exception (if parsing failed).
 		*
-		* @note 
-		*   - If parsing fails (e.g., invalid format), the exception is stored in the wrapper 
+		* @note
+		*   - If parsing fails (e.g., invalid format), the exception is stored in the wrapper
 		*     and will be thrown during implicit conversion to `T`.
 		*   - `.default_value()` does not throw and always returns either the parsed value or the fallback.
 		*/
@@ -268,37 +309,37 @@ namespace env_cfg
 			return EnvDefaultValue<T>(env_name, std::nullopt);
 		}
 		/**
- 		* @brief Sets an environment variable with the specified name and value.
- 		* 
- 		* @param env_name The name of the environment variable. Must not be empty or contain the '=' character.
- 		* @param value The value to assign to the environment variable.
- 		* @param overwrite If `true` (default), overwrites an existing variable. If `false`, preserves the existing variable (if present).
- 		* 
- 		* @throw EnvSetError In the following cases:
- 		*   - Invalid variable name (empty or contains '=').
- 		*   - Failure of the system function `setenv` (e.g., memory allocation error).
- 		* 
- 		* @note 
- 		*   - Environment variable names cannot contain the '=' character.
- 		*   - If `overwrite = false` and the variable already exists, its value remains unchanged.
- 		*   - To modify an existing variable, use `overwrite = true`.
- 		*   - This method affects the environment of the current process.
- 		*/
+		* @brief Sets an environment variable with the specified name and value.
+		*
+		* @param env_name The name of the environment variable. Must not be empty or contain the '=' character.
+		* @param value The value to assign to the environment variable.
+		* @param overwrite If `true` (default), overwrites an existing variable. If `false`, preserves the existing variable (if present).
+		*
+		* @throw EnvSetError In the following cases:
+		*   - Invalid variable name (empty or contains '=').
+		*   - Failure of the system function `setenv` (e.g., memory allocation error).
+		*
+		* @note
+		*   - Environment variable names cannot contain the '=' character.
+		*   - If `overwrite = false` and the variable already exists, its value remains unchanged.
+		*   - To modify an existing variable, use `overwrite = true`.
+		*   - This method affects the environment of the current process.
+		*/
 		static void SetEnv(const std::string& env_name, const std::string& value, bool overwrite = true);
 		/**
- 		* @brief Sets an environment variable (no-throw version) with the specified name and value.
- 		* 
- 		* @param env_name The name of the environment variable. 
- 		* @param value The value to assign to the environment variable.
- 		* @param overwrite If `true`, overwrites an existing variable. If `false`, preserves the existing variable (if present).
- 		* 
- 		* @return `true` if the environment variable was successfully set/updated.
- 		* @return `false` if the operation failed (e.g., invalid name, memory error).
- 		* 
- 		* @note 
- 		*   - Unlike `SetEnv`, this method does not validate the `env_name` format (e.g., empty name or '=' character).
- 		*   - This method is `noexcept` and never throws exceptions. Errors are reported via the return value.
- 		*/
+		* @brief Sets an environment variable (no-throw version) with the specified name and value.
+		*
+		* @param env_name The name of the environment variable.
+		* @param value The value to assign to the environment variable.
+		* @param overwrite If `true`, overwrites an existing variable. If `false`, preserves the existing variable (if present).
+		*
+		* @return `true` if the environment variable was successfully set/updated.
+		* @return `false` if the operation failed (e.g., invalid name, memory error).
+		*
+		* @note
+		*   - Unlike `SetEnv`, this method does not validate the `env_name` format (e.g., empty name or '=' character).
+		*   - This method is `noexcept` and never throws exceptions. Errors are reported via the return value.
+		*/
 		static bool SetEnvN(const std::string& env_name, const std::string& value, bool overwrite = true) noexcept;
 	private:
 		using EnvValueMember = std::optional<std::variant<int, double, long long, std::string, bool>>;
@@ -438,6 +479,10 @@ namespace env_cfg
 		}
 		else if constexpr (std::is_same_v<T, int>)
 		{
+			if (result.find(".") != std::string::npos)
+			{
+				throw EnvBadGet("expected int, but it's dooble " + result + " for enviroment " + env_name);
+			}
 			try
 			{
 				T result_int = std::stoi(result);
@@ -445,15 +490,15 @@ namespace env_cfg
 			}
 			catch (const std::invalid_argument&)
 			{
-				throw EnvBadGet("expected int " + result);
+				throw EnvBadGet("expected int " + result + " for enviroment " + env_name);
 			}
 			catch (const std::out_of_range&)
 			{
-				throw EnvBadGet("int overflow " + result);
+				throw EnvBadGet("int overflow " + result + " for enviroment " + env_name);
 			}
 			catch (const std::exception& err)
 			{
-				throw EnvException("catch unhandled exception " + static_cast<std::string>(err.what()));
+				throw EnvException("catch unhandled exception " + static_cast<std::string>(err.what()) + " for enviroment " + env_name);
 			}
 		}
 		else if constexpr (std::is_same_v<T, double>)
@@ -465,11 +510,11 @@ namespace env_cfg
 			}
 			catch (const std::invalid_argument&)
 			{
-				throw EnvBadGet("expected double " + result);
+				throw EnvBadGet("expected double " + result + " for enviroment " + env_name);
 			}
 			catch (const std::exception& err)
 			{
-				throw EnvException("catch unhandled exception " + static_cast<std::string>(err.what()));
+				throw EnvException("catch unhandled exception " + static_cast<std::string>(err.what()) + " for enviroment " + env_name);
 			}
 		}
 		else if constexpr (std::is_same_v<T, long long>)
@@ -481,15 +526,15 @@ namespace env_cfg
 			}
 			catch (const std::invalid_argument&)
 			{
-				throw EnvBadGet("expected long long " + result);
+				throw EnvBadGet("expected long long " + result + " for enviroment " + env_name);
 			}
 			catch (const std::out_of_range&)
 			{
-				throw EnvBadGet("long long overflow " + result);
+				throw EnvBadGet("long long overflow " + result + " for enviroment " + env_name);
 			}
 			catch (const std::exception& err)
 			{
-				throw EnvException("catch unhandled exception " + static_cast<std::string>(err.what()));
+				throw EnvException("catch unhandled exception " + static_cast<std::string>(err.what()) + " for enviroment " + env_name);
 			}
 		}
 		else if constexpr (std::is_same_v<T, bool>)
@@ -508,13 +553,13 @@ namespace env_cfg
 			}
 			else
 			{
-				throw EnvBadGet("expected bool " + result);
+				throw EnvBadGet("expected bool " + result + " for enviroment " + env_name);
 			}
 		}
 		else
 		{
 			std::string type = typeid(T).name();
-			throw EnvException("unhandled type " + type);
+			throw EnvException("unhandled type " + type + " for enviroment " + env_name);
 		}
 	}
 
@@ -527,9 +572,9 @@ namespace env_cfg
 		{
 			m_env_result[env_name] = env_val.value();
 		}
-		else if (value)
+		else if (value.data)
 		{
-			const auto& variant_val = value.value();
+			const auto& variant_val = value.data.value();
 
 			if (std::holds_alternative<ValueType>(variant_val))
 			{
@@ -557,14 +602,14 @@ namespace env_cfg
 	template<typename T>
 	inline bool EnvCfg::TryHandleType(const EnvValue& value, const std::string& env_name)
 	{
-		const bool is_type_present = std::visit([&env_name, this](const auto& v) {
+		const bool is_type_present = std::visit([&env_name, &value, this](const auto& v) {
 			if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::decay_t<T>>)
 			{
-				HandleType<T>(v, env_name);
+				HandleType<T>(value, env_name);
 				return true;
 			}
 			return false;
-			}, value.value());
+			}, value.data.value());
 		return is_type_present;
 	}
 
@@ -609,28 +654,25 @@ namespace env_cfg
 	inline void EnvCfg::ProcessEntry(const std::pair<std::string, EnvValue>& entry)
 	{
 		const auto& [env_name, default_value] = entry;
-		try
-		{
-			std::visit([&](const auto& val) {
-				if constexpr (std::is_same_v<std::decay_t<decltype(val)>, EnvCfgTypes>)
+		std::visit([&](const auto& val) {
+			if constexpr (std::is_same_v<std::decay_t<decltype(val)>, EnvCfgTypes>)
+			{
+				HandleEnumType(default_value, env_name);
+			}
+			else
+			{
+				if (!TryHandleType<decltype(val)>(default_value, env_name))
 				{
-					HandleEnumType(val, env_name);
+					std::string type = typeid(val).name();
+					throw EnvException("unhandled type " + type);
 				}
-				else
-				{
-					TryHandleType<decltype(val)>(val, env_name);
-				}
-				}, default_value.value());
-		}
-		catch (const std::exception& err)
-		{
-			throw EnvException(err.what());
-		}
+			}
+		}, default_value.data.value());
 	}
 
 	inline void EnvCfg::HandleEnumType(const EnvValue& value, const std::string& env_name)
 	{
-		auto type = std::get<EnvCfgTypes>(value.value());
+		auto type = std::get<EnvCfgTypes>(value.data.value());
 		switch (type)
 		{
 		case EnvCfgTypes::string_:
