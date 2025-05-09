@@ -36,9 +36,9 @@ jobs:
 
     - name: Run tests
       run: |
-        cd g_tests
-        ./inttests
-        ./typetests
+        cd tests
+        ./int_tests
+        ./type_tests
 
   coverage:
     runs-on: ubuntu-22.04
@@ -48,6 +48,18 @@ jobs:
     - name: Install coverage tools
       run: |
         sudo apt-get install -y lcov gcovr
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libgtest-dev cmake
+
+    - name: Build GTest
+      run: |
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt -Wno-dev
+        sudo make
+        sudo cp lib/*.a /usr/lib
 
     - name: Compile with coverage
       run: |
