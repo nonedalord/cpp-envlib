@@ -30,9 +30,9 @@ jobs:
 
     - name: Compile tests
       run: |
-        cd g_tests
-        ${{ matrix.compiler }} -std=c++17 -o inttests inttests.cpp -lgtest -lgtest_main -pthread
-        ${{ matrix.compiler }} -std=c++17 -o typetests typetests.cpp -lgtest -lgtest_main -pthread
+        cd tests
+        ${{ matrix.compiler }} -std=c++17 -o int_tests int_tests.cpp -lgtest -lgtest_main -pthread
+        ${{ matrix.compiler }} -std=c++17 -o type_tests type_tests.cpp -lgtest -lgtest_main -pthread
 
     - name: Run tests
       run: |
@@ -51,16 +51,17 @@ jobs:
 
     - name: Compile with coverage
       run: |
-        cd g_tests
-        g++ --coverage -std=c++17 -o inttests inttests.cpp -lgtest -lgtest_main -pthread
+        cd tests
+        g++ --coverage -std=c++17 -o int_tests int_tests.cpp -lgtest -lgtest_main -pthread
 
     - name: Run tests and generate coverage
       run: |
-        cd g_tests
-        ./inttests
-        gcovr --exclude tests/ --xml-pretty -o coverage.xml
+        cd tests
+        ./int_tests
+        ./type_tests
+        gcovr --root ../ --exclude tests/ --xml-pretty -o coverage.xml
 
     - name: Upload coverage
       uses: codecov/codecov-action@v3
       with:
-        file: g_tests/coverage.xml
+        file: tests/coverage.xml
