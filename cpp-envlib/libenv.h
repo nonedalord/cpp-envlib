@@ -409,7 +409,7 @@ namespace env_cfg
 
 	using EnvMap = std::unordered_map<std::string, EnvCfg::EnvValue>;
 
-	template <typename T, typename = std::enable_if_t <std::disjunction_v <std::is_same<T, int>, std::is_same<T, double>, std::is_same<T, std::string>, std::is_same<T, long long>, std::is_same<T, bool>>>>
+	template <typename T, typename>
 	inline T EnvCfg::Get(const std::string& env_name) const
 	{
 		auto it = m_env_result.find(env_name);
@@ -431,7 +431,7 @@ namespace env_cfg
 		}
 	}
 
-	template <typename T, typename = std::enable_if_t <std::disjunction_v <std::is_same<T, int>, std::is_same<T, double>, std::is_same<T, std::string>, std::is_same<T, long long>, std::is_same<T, bool>>>>
+	template <typename T, typename>
 	inline std::optional<T> EnvCfg::GetN(const std::string& env_name) const noexcept
 	{
 		auto it = m_env_result.find(env_name);
@@ -446,7 +446,7 @@ namespace env_cfg
 		return std::nullopt;
 	}
 
-	template <typename T, typename = std::enable_if_t <std::disjunction_v <std::is_same<T, int>, std::is_same<T, double>, std::is_same<T, std::string>, std::is_same<T, long long>, std::is_same<T, bool>>>>
+	template <typename T, typename>
 	inline bool EnvCfg::IsType(const std::string& env_name) const noexcept
 	{
 		auto it = m_env_result.find(env_name);
