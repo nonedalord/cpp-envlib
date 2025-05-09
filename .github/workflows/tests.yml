@@ -65,6 +65,7 @@ jobs:
       run: |
         cd tests
         g++ --coverage -std=c++17 -o int_tests int_tests.cpp -lgtest -lgtest_main -pthread
+        g++ --coverage -std=c++17 -o type_tests type_tests.cpp -lgtest -lgtest_main -pthread
 
     - name: Run tests and generate coverage
       run: |
