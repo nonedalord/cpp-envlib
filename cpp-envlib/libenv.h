@@ -1,3 +1,10 @@
+//
+//  libenv.h
+//
+//  Copyright (c) 2025 Daniil Aleev. All rights reserved.
+//  MIT License
+//
+
 #pragma once
 
 #define CPPLIBENV_VERSION "1.1"
